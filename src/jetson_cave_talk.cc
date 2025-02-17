@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <sys/fcntl.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -88,9 +89,14 @@ CaveTalk_Error_t send(const void *const data, const size_t size){
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
     
-    size_t bytes_written = write(serial_port, data, size);
+    if(PORT_OPEN){
+        size_t bytes_written = write(serial_port, data, size);
 
-    if(bytes_written < 0){
+        if(bytes_written < 0){
+            error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+        }
+
+    }else{
         error = CAVE_TALK_ERROR_SOCKET_CLOSED;
     }
 
@@ -101,17 +107,38 @@ CaveTalk_Error_t receive(void *const data, const size_t size, size_t *const byte
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
 
+    if(PORT_OPEN){
+
+        size_t bytes_received = read(serial_port, data, size);
+
+        if(bytes_received != size) error = CAVE_TALK_ERROR_SIZE;
+
+    }else{
+        error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+    }
+
     
+
+    return error;
 
 }
 
 
 CaveTalk_Error_t available(size_t *const bytes){
 
-    CaveTalk_Error_t error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+    CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
 
-    int bytes_available;
+    if(!PORT_OPEN){
+        error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+    }
 
-    if(ioctl())
+    if(ioctl(serial_port, FIONREAD, bytes) == -1){
+
+        error = CAVE_TALK_ERROR_SOCKET_CLOSED;
 
     }
+
+    return error;
+        
+    
+}
