@@ -64,7 +64,7 @@ CaveTalk_Error_t init(){
 	if( (cfsetispeed(&tty, BAUD_RATE) != 0) || (cfsetospeed(&tty, BAUD_RATE) != 0) && (error == CAVE_TALK_ERROR_NONE)){
         std::cout << "Error setting baud rate" << std::endl;
 
-        error = CAVE_TALK_ERROR_SOCKET_CLOSED
+        error = CAVE_TALK_ERROR_SOCKET_CLOSED;
     }
 	
 	if((tcsetattr(serial_port, TCSANOW, &tty) != 0) && (error == CAVE_TALK_ERROR_NONE)) {
@@ -75,9 +75,9 @@ CaveTalk_Error_t init(){
 
     if(error != CAVE_TALK_ERROR_NONE){
         close(serial_port);
-        PORT_OPEN = 0;
+        port_open = false;
     }else{
-        PORT_OPEN = 1;
+        port_open = true;
     }
 	
 
@@ -85,15 +85,35 @@ CaveTalk_Error_t init(){
 }
 
 
-CaveTalk_Error_t send(const void *const data, const size_t size){
+CaveTalk_Error_t deinit(){
+
+    if(port_open){
+        close(serial_port);
+    }
+
+    port_open = false;
+
+    return CAVE_TALK_ERROR_SOCKET_CLOSED;
+
+}
+
+
+CaveTalk_Error_t flush(){
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
-    
-    if(PORT_OPEN){
-        size_t bytes_written = write(serial_port, data, size);
 
-        if(bytes_written < 0){
-            error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+    if(port_open){
+        size_t bytes_available = 0;
+        char throwaway = '!';
+        size_t bytes_received = 0;
+
+        available(&bytes_available);
+
+
+        while(bytes_available > 0){
+            receive(&throwaway, 1, &bytes_received);
+            available(&bytes_available);
+            //std::cout << (bytes_available) << std::endl;
         }
 
     }else{
@@ -103,21 +123,43 @@ CaveTalk_Error_t send(const void *const data, const size_t size){
     return error;
 
 }
-CaveTalk_Error_t receive(void *const data, const size_t size, size_t *const bytes_received){
+
+
+CaveTalk_Error_t send(const void *const data, const size_t size){
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
+    
+    if(port_open){
+        size_t bytes_written = write(serial_port, data, size);
 
-    if(PORT_OPEN){
-
-        size_t bytes_received = read(serial_port, data, size);
-
-        if(bytes_received != size) error = CAVE_TALK_ERROR_SIZE;
+        if(bytes_written < 0){
+            error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+        }else if(bytes_written < size){
+            error = CAVE_TALK_ERROR_SIZE;
+        }
 
     }else{
         error = CAVE_TALK_ERROR_SOCKET_CLOSED;
     }
 
-    
+    return error;
+
+}
+
+
+CaveTalk_Error_t receive(void *const data, const size_t size, size_t *const bytes_received){
+
+    CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
+
+    if(port_open){
+
+        *bytes_received = read(serial_port, data, size);
+
+        if(*bytes_received != size) error = CAVE_TALK_ERROR_SIZE;
+
+    }else{
+        error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+    }
 
     return error;
 
@@ -128,7 +170,7 @@ CaveTalk_Error_t available(size_t *const bytes){
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
 
-    if(!PORT_OPEN){
+    if(!port_open){
         error = CAVE_TALK_ERROR_SOCKET_CLOSED;
     }
 
@@ -142,3 +184,4 @@ CaveTalk_Error_t available(size_t *const bytes){
         
     
 }
+
