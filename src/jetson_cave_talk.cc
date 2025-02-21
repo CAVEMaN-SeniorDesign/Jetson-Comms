@@ -12,7 +12,7 @@
 #include <iostream>
 
 
-int serial_port;
+// int serial_port; // <- Why is this being declared again when it was in the .h file?
 
 
 CaveTalk_Error_t init(){
