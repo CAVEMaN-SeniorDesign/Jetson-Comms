@@ -11,9 +11,8 @@
 #include <string>
 #include <iostream>
 
-
-// int serial_port; // <- Why is this being declared again when it was in the .h file?
-
+bool port_open = false;
+int serial_port;
 
 CaveTalk_Error_t init(){
 
