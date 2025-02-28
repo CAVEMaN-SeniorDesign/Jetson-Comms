@@ -14,6 +14,9 @@
 bool port_open = false;
 int serial_port;
 
+namespace cave_talk
+{
+
 CaveTalk_Error_t init(){
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
@@ -79,7 +82,11 @@ CaveTalk_Error_t init(){
         port_open = true;
     }
 	
+    if(error == CAVE_TALK_ERROR_NONE){
+        std::cout << "Port initialized with Baud: " << std::endl;
+        std::cout << BAUD_RATE << std::endl;
 
+    }
     return error;
 }
 
@@ -184,3 +191,4 @@ CaveTalk_Error_t available(size_t *const bytes){
     
 }
 
+}//namespace cave_talk
