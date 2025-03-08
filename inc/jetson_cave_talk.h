@@ -43,8 +43,8 @@
 
 extern bool port_open;
 extern int serial_port;
-char target_port[20] = "/dev/ttyUSB1";
-speed_t baud_rate = B1000000;
+// char target_port[20] = "/dev/ttyUSB1";
+// speed_t baud_rate = B1000000;
 
 namespace cave_talk
 {

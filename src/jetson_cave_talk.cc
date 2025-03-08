@@ -1,28 +1,25 @@
 #include "jetson_cave_talk.h"
 
+#ifndef PORT
+#define PORT "/dev/ttyUSB0"
+#endif
+
+#ifndef BAUD_RATE
+#define BAUD_RATE B1000000
+#endif
+
 bool port_open = false;
 int serial_port;
 
 namespace cave_talk
 {
 
-void setTargetPort(const char* new_port) {
-    if (strlen(new_port) < sizeof(target_port)) {
-        strcpy(target_port, new_port);
-        
-    }
-}
-
-void setBaud(speed_t new_baud){
-    baud_rate = new_baud;
-}
-
 CaveTalk_Error_t init(){
-    std::cout << "Trying to open port: "<< target_port << std::endl;
+    std::cout << "Trying to open port: "<< PORT << std::endl;
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
 
-    serial_port = open(target_port, O_RDWR | O_NONBLOCK);
+    serial_port = open(PORT, O_RDWR | O_NONBLOCK);
 	
 	if((serial_port < 0) && (error == CAVE_TALK_ERROR_NONE)){
 		std::cout << "Couldn't open port" << std::endl;
@@ -64,7 +61,7 @@ CaveTalk_Error_t init(){
 	
 	
 	
-	if( (cfsetispeed(&tty, baud_rate) != 0) || (cfsetospeed(&tty, baud_rate) != 0) && (error == CAVE_TALK_ERROR_NONE)){
+	if( (cfsetispeed(&tty, BAUD_RATE) != 0) || (cfsetospeed(&tty, BAUD_RATE) != 0) && (error == CAVE_TALK_ERROR_NONE)){
         std::cout << "Error setting baud rate" << std::endl;
 
         error = CAVE_TALK_ERROR_SOCKET_CLOSED;
@@ -85,7 +82,7 @@ CaveTalk_Error_t init(){
 	
     if(error == CAVE_TALK_ERROR_NONE){
         std::cout << "Port initialized with Baud: " << std::endl;
-        std::cout << baud_rate << std::endl;
+        std::cout << BAUD_RATE << std::endl;
 
     }
     return error;
