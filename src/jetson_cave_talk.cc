@@ -155,18 +155,34 @@ CaveTalk_Error_t receive(void *const data, const size_t size, size_t *const byte
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
 
-    if(port_open){
+    if(port_open)
+    {
+        int bytes_read = read(serial_port, data, size);
 
-        *bytes_received = read(serial_port, data, size);
-
-        if(*bytes_received != size) error = CAVE_TALK_ERROR_SIZE;
-
-    }else{
+        if (-1 == bytes_read)
+        {
+            if ((errno != EAGAIN) && (errno != EWOULDBLOCK))
+            {
+                error = CAVE_TALK_ERROR_INCOMPLETE;
+            }
+        }
+        else if (0 == bytes_read)
+        {
+            port_open = false;
+            *bytes_received = 0U;
+            error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+        }
+        else
+        {
+            *bytes_received = (size_t)bytes_read;
+        }
+    }
+    else
+    {
         error = CAVE_TALK_ERROR_SOCKET_CLOSED;
     }
 
     return error;
-
 }
 
 
