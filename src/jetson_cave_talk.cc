@@ -8,68 +8,72 @@
 #define BAUD_RATE B1000000
 #endif
 
+// Default settings, can be modified using set functions
 bool port_open = false;
 int serial_port;
+std::string target_port = "/dev/ttyUSB0";
+speed_t baud_rate = B1000000; 
 
 namespace cave_talk
 {
 
 CaveTalk_Error_t init(){
-    std::cout << "Trying to open port: "<< PORT << std::endl;
+    std::cout << "Trying to open port: " << target_port << " at baud " << baud_rate << std::endl;
 
     CaveTalk_Error_t error = CAVE_TALK_ERROR_NONE;
 
-    serial_port = open(PORT, O_RDWR | O_NONBLOCK);
-	
+    serial_port = open(target_port.c_str(), O_RDWR | O_NONBLOCK);
 	if((serial_port < 0) && (error == CAVE_TALK_ERROR_NONE)){
 		std::cout << "Couldn't open port" << std::endl;
 		error = CAVE_TALK_ERROR_SOCKET_CLOSED;
 	}
 	
+    // flushing buffers
+    tcflush(serial_port, TCIFLUSH);
+    tcflush(serial_port, TCIOFLUSH);
+    usleep(1000000);  // 1 sec delay
+
 	struct termios tty;
 	
-	if((tcgetattr(serial_port, &tty) != 0) && (error == CAVE_TALK_ERROR_NONE)){
+	if(tcgetattr(serial_port, &tty) != 0){
 		std::cout << "error from tcgetattr " << tcgetattr(serial_port, &tty) << std::endl;
-			
+		close(serial_port); // adding close if error opening (idk just in case)
 		error = CAVE_TALK_ERROR_SOCKET_CLOSED;
 	}
 
     if(error == CAVE_TALK_ERROR_NONE){
-
-        tty.c_cflag &= ~PARENB;
-        tty.c_cflag &= ~CSTOPB;
-        tty.c_cflag &= ~CSIZE;
-        tty.c_cflag |= CS8;
-        tty.c_cflag &= ~CRTSCTS;
-        tty.c_cflag |= CREAD | CLOCAL;
+        tty.c_cflag &= ~PARENB; // Disables parity.
+        tty.c_cflag &= ~CSTOPB; // Stop bit: CSTOPB = 2 stop bits, clearing is 1 stop bit. (Set two stop bits as a test)
+        tty.c_cflag &= ~CSIZE; // Character size mask.  This clears the data size mask
+        tty.c_cflag |= CS8; // Set the data bits = 8
+        tty.c_cflag &= ~CRTSCTS; // Disable RTS/CTS hardware flow control (Check if MCU has RTS and CTS pins)
+        tty.c_cflag |= CREAD | CLOCAL; // Enable receiver, ignore modem control lines
         
-        tty.c_lflag &= ~ICANON;
-        tty.c_lflag &= ~ECHO;
-        tty.c_lflag &= ~ECHOE;
-        tty.c_lflag &= ~ECHONL;
+        // Clearing these bits sets "Non-Cannonical mode", i.e. disables Cannonical mode that continues to read until a new-line character is read.
+        tty.c_lflag &= ~ICANON; 
+        tty.c_lflag &= ~ECHO; 
+        tty.c_lflag &= ~ECHOE; 
+        tty.c_lflag &= ~ECHONL; 
         tty.c_lflag &= ~ISIG;
-        tty.c_lflag &= ~(IXON | IXOFF | IXANY);
-        tty.c_lflag &= ~(IGNBRK | BRKINT| PARMRK| ISTRIP| INLCR| IGNCR| ICRNL);
         
-        tty.c_oflag &= ~OPOST;
-        tty.c_oflag &= ~ONLCR;
-        
-        tty.c_cc[VTIME] = 10;
-        tty.c_cc[VMIN] = 0;
-
+        tty.c_lflag &= ~(IXON | IXOFF | IXANY); // Disables XON/XOFF flow control on both input & output
+        tty.c_lflag &= ~(IGNBRK | BRKINT| PARMRK| ISTRIP| INLCR| IGNCR| ICRNL); // Disables special handling of received bytes
+        tty.c_oflag &= ~OPOST; // Disables output processing
+        tty.c_oflag &= ~ONLCR; // Disable mapping NL char to CR-NL
+        tty.c_cc[VTIME] = 0; //  timeout in deciseconds for non-canonical read, 0 is wait indefinitely
+        tty.c_cc[VMIN] = 0; // min number of characters to read, before returning from read()
     }
 	
 	
-	
-	if( (cfsetispeed(&tty, BAUD_RATE) != 0) || (cfsetospeed(&tty, BAUD_RATE) != 0) && (error == CAVE_TALK_ERROR_NONE)){
+	if( (cfsetispeed(&tty, baud_rate) != 0) || (cfsetospeed(&tty, baud_rate) != 0) && (error == CAVE_TALK_ERROR_NONE)){
         std::cout << "Error setting baud rate" << std::endl;
-
+        close(serial_port);
         error = CAVE_TALK_ERROR_SOCKET_CLOSED;
     }
 	
 	if((tcsetattr(serial_port, TCSANOW, &tty) != 0) && (error == CAVE_TALK_ERROR_NONE)) {
 		std::cout << "Error from tcsetattr " << tcsetattr(serial_port, TCSANOW, &tty) << std::endl;
-		
+		close(serial_port);
 		error = CAVE_TALK_ERROR_SOCKET_CLOSED;
 	}
 
@@ -77,14 +81,15 @@ CaveTalk_Error_t init(){
         close(serial_port);
         port_open = false;
     }else{
+        std::cout << "Port initialized successfully on " << target_port << " at baud " << baud_rate << std::endl;
         port_open = true;
     }
-	
-    if(error == CAVE_TALK_ERROR_NONE){
-        std::cout << "Port initialized with Baud: " << std::endl;
-        std::cout << BAUD_RATE << std::endl;
 
-    }
+    // flushing buffers
+    tcflush(serial_port, TCIFLUSH);
+    tcflush(serial_port, TCIOFLUSH);
+    usleep(1000000);  // 1 sec delay
+
     return error;
 }
 
@@ -113,6 +118,10 @@ CaveTalk_Error_t flush(){
 
         available(&bytes_available);
 
+        sleep(1);
+        if(tcflush(serial_port, TCIOFLUSH) != 0) {
+            error = CAVE_TALK_ERROR_SOCKET_CLOSED;
+        }
 
         while(bytes_available > 0){
             receive(&throwaway, 1, &bytes_received);
