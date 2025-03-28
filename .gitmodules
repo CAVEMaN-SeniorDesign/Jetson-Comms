@@ -1,3 +1,4 @@
 [submodule "CAVeTalk"]
 	path = CAVeTalk
-	url = https://github.com/CAVEMaN-SeniorDesign/CAVeTalk
+	url = git@github.com:CAVEMaN-SeniorDesign/CAVeTalk.git
+	branch = main
